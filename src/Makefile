@@ -11,7 +11,7 @@ FilterGenerator.o: FilterGenerator.cpp FilterGenerator.h AudioFile.h
 	$(CC) $(CXXFLAGS) FilterGenerator.cpp
 
 AudioFile.o: AudioFile.cpp AudioFile.h
-	$(CC) AudioFile.cpp
+	$(CC) $(CXXFLAGS) AudioFile.cpp
 
 main.o: main.cpp FilterGenerator.h AudioFile.h
 	$(CC) $(CXXFLAGS) main.cpp
