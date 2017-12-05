@@ -21,6 +21,9 @@ using namespace std;
 
 
 FilterGenerator::FilterGenerator(vector<string> samples){
+    test(samples[0]);
+    cout << "test successful" << endl;
+    exit(0);
     vector<AudioFile<double>> af_list;
     level = 4;
     int sample_size;
@@ -55,6 +58,31 @@ FilterGenerator::FilterGenerator(vector<string> samples){
 }
 
 
+bool FilterGenerator::test(string file_name){
+    AudioFile<double> test;
+    int sample_size;
+    int level;
+    bool retval = true;
+    if (test.load(file_name)){
+        sample_size = test.samples[0].size();
+        level = 4;
+        double* wpt_tree = (double*)malloc((sample_size + 100) * sizeof(double));
+        for (int i = 0; i < sample_size; i++){
+            wpt_tree[i] = test.samples[0][i];
+        }
+        wpt_decompose(wpt_tree, sample_size, level);
+        iwpt_recompose(wpt_tree, sample_size, level);
+        for (int i = 0; i < sample_size; i++){
+            if (wpt_tree[i] != test.samples[0][i]){
+                cout << wpt_tree[i] << "!=" << test.samples[0][i] << endl;
+                retval = false;
+            }
+        }
+    }
+    return retval;
+}
+
+
 void FilterGenerator::filter(string file_name){
     AudioFile<double> noise;
     double* frame = (double*)malloc(window_size * sizeof(double));
@@ -68,9 +96,13 @@ void FilterGenerator::filter(string file_name){
             for (int j = 0; j < window_size; j++)
                 frame[j] = noise.samples[0][i + j];
             wpt_decompose(frame, window_size, level);
-            apply_filter(frame);
+            apply_filter(frame, window_size, 1 << level);
             //inverse WPT
+            iwpt_recompose(frame, window_size, level);
+
             //meassure energy increase
+            //normalize signals
+
             //apply thressholding
             //reduce the noise in signal
             //???
@@ -87,7 +119,7 @@ void FilterGenerator::filter(string file_name){
 void FilterGenerator::apply_filter(double* frame, int M, int N){
     for (int i = 0; i < N; i++){
         for (int k = 0; k < M; k++){
-            frame[i * M + k] *= e[i];
+            frame[i * M + k] *= H[i];
         }
     }
 }
@@ -139,16 +171,92 @@ vector<double> FilterGenerator::avg_tree(vector<vector<double>> wpt_tree_set, in
 }
 
 
-void FilterGenerator::wpt_decompose(double* wpt_tree, int sample_size, int level){
+void FilterGenerator::iwpt_recompose(double* wpt_tree, int sample_size, int level){
     wave_object obj;
     wt_object wt;
-    
-    char* name = "haar";
-    obj = wave_init(name);
-    wt = wt_init(obj, "dwt", sample_size, 1);
-    setWTConv(wt, "fft");
 
-    for (int i = 0; i < level; i++){
+    double* out;
+    out = (double*)malloc(100000 * sizeof(double));
+    cout << "test" << endl;
+    
+    char* name = "db3";
+    obj = wave_init(name);
+
+    wt = wt_init(obj, "dwt", 100, 1);
+    setDWTExtension(wt, "sym");
+    wt->lenlength = 2;
+    wt->length[0] = 160;
+    wt->length[1] = 160;
+    for (int i = 0; i < sample_size * 2; i++){
+        wt->output[i] = wpt_tree[i];
+        cout << wpt_tree[i] << endl;
+    }
+
+    
+    wt_summary(wt);
+    idwt(wt, out);
+    
+    wt_summary(wt);
+
+    return; 
+
+
+
+
+    for (int j = 0; j < 1 << (level - 1); j++){ 
+        for (int i = 0; i < sample_size * 2; i++){
+            wt->output[i] = wpt_tree[j * sample_size + i];
+        }
+        wt->siglength = sample_size;
+        idwt(wt, out);
+        wt_summary(wt);
+        for (int i = 0; i < sample_size * 2; i++){
+            wpt_tree[j * sample_size + i] = out[i];
+        }
+    }
+
+}
+
+
+void FilterGenerator::wpt_decompose(double* wpt_tree, int& sample_size, int level){
+    wave_object obj;
+    wtree_object wt;
+    char *name = "db3";
+    obj = wave_init(name);
+
+    wt = wtree_init(obj, sample_size, level);
+    setWTREEExtension(wt, "sym");
+
+    wtree(wt, wpt_tree);
+    wtree_summary(wt);
+
+    int i = 0, node = 0;
+    int length = getWTREENodelength(wt, level);
+
+    while (i < sample_size){
+        getWTREECoeffs(wt, level, node, &wpt_tree[i], length);
+        node++;
+        i += length;
+    }
+
+    sample_size = length;
+
+    wave_free(obj);
+    wtree_free(wt);
+    
+    
+    
+
+    //wave_object obj;
+    //wt_object wt;
+    
+    //char* name = "haar";
+    //obj = wave_init(name);
+    //wt = wt_init(obj, "dwt", sample_size, 1);
+    //setWTConv(wt, "fft");
+
+
+    /*for (int i = 0; i < level; i++){
         for (int j = 0; j < 1 << i; j++){
             dwt(wt, &wpt_tree[sample_size * j]);
             //wt_summary(wt);
@@ -159,7 +267,9 @@ void FilterGenerator::wpt_decompose(double* wpt_tree, int sample_size, int level
             }
         }
         sample_size /= 2;
+        wt->siglength /= 2;
     }
+    */
 }
 
 #endif
