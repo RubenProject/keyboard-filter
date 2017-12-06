@@ -8,19 +8,17 @@
 
 
 int main(){
-    std::vector<std::string> sample_name = {"../samples/key0.wav",
-                                            "../samples/key1.wav",
-                                            "../samples/key2.wav"};
+    std::vector<std::string> sample_name = {"../data/samples/key0.wav",
+                                            "../data/samples/key1.wav",
+                                            "../data/samples/key2.wav"};
 
     FilterGenerator FG(sample_name);
+    //FG.filter("../data/in/positive.wav", "../data/out/positive.wav");
+    //FG.filter("../data/in/positive.wav", "../data/out/negative.wav");
 
     
 
 
-    //get input signal
-    //divide into frames
-    //WPT
-    //create filter
-    //filter
+
     return 0;
 }

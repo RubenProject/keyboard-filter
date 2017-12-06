@@ -1,9 +1,8 @@
 #ifndef VAR_FILTERGENERATOR_H
 #define VAR_FILTERGENERATOR_H
 
-#include "../wavelib/header/wauxlib.h"
-#include "../wavelib/header/wavelib.h"
-#include "../AudioFile/AudioFile.h"
+#include "wavelet2d.h"
+#include "AudioFile.h"
 
 #include <string>
 #include <vector>
@@ -14,19 +13,30 @@ using namespace std;
 class FilterGenerator {
     public:
         FilterGenerator(vector<string> samples);
-        void filter(string file_name);
         bool test(string file_name);
+        bool filter(string in_file, string out_file);
     private:
-        void wpt_decompose(double* wpt_tree, int& sample_size, int level);
-        void iwpt_recompose(double* wpt_tree, int sample_size, int level);
-        vector<AudioFile<double>> open_samples(vector<string> samples, int& sample_size);
-        vector<double> avg_tree(vector<vector<double>> wpt_tree_set, int sample_size);
-        vector<double> extract_energy(vector<double> wpt_tree, int sample_size, int level);
-        void apply_filter(double* frame, int M, int N);
+        void wpt_decompose(vector<double> in, vector<vector<double>>& out);
+        void iwpt_recompose(vector<vector<double>> in, vector<double>& out);
+        int make_p2(vector<double>& samples);
+
+        vector<vector<double>> open_samples(vector<string> file_name);
+        void init_filter(vector<vector<double>> s_list);
+        void avg_tree_list(vector<vector<vector<double>>> wpt_tree_list, vector<vector<double>>& wpt_avg_tree);
+        vector<double> extract_energy(vector<vector<double>> wpt_avg_tree);
+
+        void init_frames(vector<double> s, vector<vector<double>>& frame_list);
+        void apply_filter(vector<vector<double>>& frame_tree);
+        double energy_increase(vector<double> ref, vector<double> f);
+
+        int level;
+        vector<vector<double>> flag_stack;
+        vector<vector<int>> length_stack;
 
         vector<double> H;
-        int level;
-        int window_size;
+        int siglen;
+        int frame_size;
+        int skip;
 };
 
 

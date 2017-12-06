@@ -4,3 +4,6 @@
 /packet/
 /wavelib/
 /AudioFile/
+/wavelet1d/
+/fftw-3.3.7/
+*.pdf

@@ -1,17 +1,22 @@
 CC = g++
 
 CXXFLAGS = -c -Wall -std=c++11
-LDFLAGS = ./libwavelib.a
-OBJS = FilterGenerator.o AudioFile.o main.o
+OBJS = FilterGenerator.o kiss_fft.o wavelet2d.o AudioFile.o main.o
 
 filter: $(OBJS)
-	$(CC) $(OBJS) -o filter $(LDFLAGS)
+	$(CC) $(OBJS) -o filter 
 
-FilterGenerator.o: FilterGenerator.cpp FilterGenerator.h AudioFile.h
+FilterGenerator.o: FilterGenerator.cpp FilterGenerator.h AudioFile.h wavelet2d.h
 	$(CC) $(CXXFLAGS) FilterGenerator.cpp
+
+kiss_fft.o: kiss_fft.c _kiss_fft_guts.h
+	$(CC) $(CXXFLAGS) kiss_fft.c
+
+wavelet2d.o: wavelet2d.cpp wavelet2d.h kiss_fft.h
+	$(CC) $(CXXFLAGS) wavelet2d.cpp
 
 AudioFile.o: AudioFile.cpp AudioFile.h
 	$(CC) $(CXXFLAGS) AudioFile.cpp
 
-main.o: main.cpp FilterGenerator.h AudioFile.h
+main.o: main.cpp FilterGenerator.h wavelet2d.h AudioFile.h
 	$(CC) $(CXXFLAGS) main.cpp
