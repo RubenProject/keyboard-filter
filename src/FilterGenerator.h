@@ -26,13 +26,20 @@ class FilterGenerator {
         vector<double> extract_energy(vector<vector<double>> wpt_avg_tree);
 
         void init_frames(vector<double> s, vector<vector<double>>& frame_list);
+        void update_filter(vector<double> n);
         void apply_filter(vector<vector<double>>& frame_tree);
-        double energy_increase(vector<double> ref, vector<double> f);
+        vector<double> energy_increase(vector<double> ref, vector<double> f);
+        vector<double> normalize_energy(vector<double> sig);
+        void thresshold_energy(vector<double>& e);
+        void suppress_noise(vector<double>& n, vector<double> e);
+        void plot_energy(vector<double> e);
 
         int level;
         vector<vector<double>> flag_stack;
         vector<vector<int>> length_stack;
 
+        vector<double> e_sig;
+        vector<double> e_noise;
         vector<double> H;
         int siglen;
         int frame_size;

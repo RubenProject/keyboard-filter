@@ -13,8 +13,8 @@ int main(){
                                             "../data/samples/key2.wav"};
 
     FilterGenerator FG(sample_name);
-    //FG.filter("../data/in/positive.wav", "../data/out/positive.wav");
-    //FG.filter("../data/in/positive.wav", "../data/out/negative.wav");
+    FG.filter("../data/in/positive.wav", "../data/out/positive.wav");
+    //FG.filter("../data/in/negative.wav", "../data/out/negative.wav");
 
     
 

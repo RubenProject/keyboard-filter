@@ -4,6 +4,7 @@
 #include "FilterGenerator.h"
 #include "wavelet2d.h"
 #include "AudioFile.h"
+#include "gnuplot-iostream.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -12,33 +13,34 @@
 #include <iostream>
 #include <cmath>
 #include <string>
+#include <utility>
 
 
 using namespace std;
 
 
-
 FilterGenerator::FilterGenerator(vector<string> samples){
-    level = 6;
+    level = 4;
+    test("../data/in/positive.wav");
     vector<vector<double>> s_list;
     s_list = open_samples(samples);
     if (s_list.size() > 0){
         init_filter(s_list);
     }
-    for (int i = 0; i < H.size(); i++){
-        cout << H[i] << endl;
-    }
+    flag_stack.clear();
+    length_stack.clear();
 }
 
 
 bool FilterGenerator::filter(string in_file, string out_file){
     vector<vector<double>> frame_list, frame_tree;
-    vector<double> ref_frame, frame, ei;
+    vector<double> ref_frame, frame, d_e_list, d_e;
     AudioFile<double> af;
     if (af.load(in_file))
         init_frames(af.samples[0], frame_list);
     else
         return false;
+    update_filter(af.samples[0]);
     for (int i = 0; i < (int)frame_list.size(); i++){
         cout << (double)i / (int)frame_list.size() * 100.0 << endl;
         frame = frame_list[i];
@@ -46,15 +48,63 @@ bool FilterGenerator::filter(string in_file, string out_file){
         wpt_decompose(frame, frame_tree);
         apply_filter(frame_tree);
         iwpt_recompose(frame_tree, frame);
-        ei.push_back(energy_increase(ref_frame, frame));
+        d_e = energy_increase(ref_frame, frame);
+        for (int j = 0; j < (int)d_e.size(); j++){
+            d_e_list.push_back(d_e[j]);
+        }
+        frame_tree.clear();
         frame.clear();
         ref_frame.clear();
+        d_e.clear();
     }
-    for (int i = 0; i < (int)ei.size(); i++){
-        cout << ei[i] << endl;
-    }
-    //af.samples[0] = newsignalbalbalb;
+    plot_energy(d_e_list);
+    thresshold_energy(d_e_list);
+    suppress_noise(af.samples[0], d_e_list);
+    cin.get();
     return af.save(out_file);
+}
+
+
+void FilterGenerator::update_filter(vector<double> n){
+    vector<vector<double>> tree;
+    wpt_decompose(n, tree);
+    flag_stack.clear();
+    length_stack.clear();
+    e_noise = extract_energy(tree);
+    H.resize(e_sig.size());
+    for (int i = 0; i < (int)e_sig.size(); i++){
+        H[i] = e_sig[i] / e_noise[i];
+    }
+}
+
+
+void FilterGenerator::suppress_noise(vector<double>& n, vector<double> e){
+    for (int i = 0; i < (int)e.size(); i++){
+        if (e[i] == 1){
+            n[i] /= 0.5;
+        }
+    }
+}
+
+
+void FilterGenerator::plot_energy(vector<double> e){
+    Gnuplot gp;
+    vector<pair<int, double>> plot_obj;
+    for (int i = 0; i < (int)e.size(); i++){
+        plot_obj.push_back(make_pair(i, e[i]));
+    }
+    gp << "plot '-'\n";
+    gp.send1d(plot_obj);
+}
+
+
+void FilterGenerator::thresshold_energy(vector<double>& e){
+    for (int i = 0; i < (int)e.size(); i++){
+        if (e[i] < 0.045)
+            e[i] = 0;
+        else
+            e[i] = 1;
+    }
 }
 
 
@@ -67,12 +117,34 @@ void FilterGenerator::apply_filter(vector<vector<double>>& frame_tree){
 }
 
 
-double FilterGenerator::energy_increase(vector<double> ref, vector<double> f){
-    double inc = 0;
-    for (int i = 0; i < (int)f.size(); i++){
-        inc += f[i] - ref[i];
+vector<double> FilterGenerator::normalize_energy(vector<double> sig){
+    vector<double> e;
+    e.resize(frame_size);
+    double t_e = 0.0;
+    for (int i = 0; i < (int)sig.size(); i++){
+        t_e += abs(sig[i] * sig[i]);
     }
-    return inc;
+    for (int i = 0; i < (int)sig.size(); i++){
+        e[i] = abs(sig[i] * sig[i]) / t_e;
+    }
+    return e;
+}
+
+
+vector<double> FilterGenerator::energy_increase(vector<double> x, vector<double> y){
+    vector<double> e_in, e_out, d_e;
+    double t;
+    e_in = normalize_energy(x);
+    e_out = normalize_energy(y);
+    d_e.resize(frame_size);
+    for (int i = 0; i < (int)d_e.size(); i++){
+        t = 0.0;
+        for (int j = i; j < frame_size; j++){
+            t += e_out[j] - e_in[j];
+        }
+        d_e[i] = t;
+    }
+    return d_e;
 }
 
 
@@ -80,7 +152,7 @@ void FilterGenerator::init_frames(vector<double> sig, vector<vector<double>>& fr
     vector<double> frame;
     int i = 0;
     siglen = (int)sig.size();
-    skip = 100;
+    skip = frame_size;
     while (i < siglen){
         if (i + frame_size < siglen){ 
             for (int j = 0; j < frame_size; j++){
@@ -122,7 +194,7 @@ void FilterGenerator::init_filter(vector<vector<double>> s_list){
     //calculate average wpt
     avg_tree_list(wpt_tree_list, wpt_avg_tree);
 
-    H = extract_energy(wpt_avg_tree);
+    e_sig = extract_energy(wpt_avg_tree);
 }
 
 
@@ -144,7 +216,7 @@ vector<double> FilterGenerator::extract_energy(vector<vector<double>> wpt_avg_tr
 
 void FilterGenerator::avg_tree_list(vector<vector<vector<double>>> wpt_tree_list, 
         vector<vector<double>>& wpt_avg_tree){
-    wpt_avg_tree = wpt_tree_list[0];
+    wpt_avg_tree = wpt_tree_list[2];
 }
 
 
@@ -166,6 +238,7 @@ bool FilterGenerator::test(string file_name){
     vector<double> wpt, orig;
     if (test.load(file_name)){
         orig = test.samples[0];
+        orig.resize(orig.size()/8);
         wpt = orig;
 
         wpt_decompose(wpt, wpt_tree);
@@ -212,6 +285,7 @@ void FilterGenerator::wpt_decompose(vector<double> in, vector<vector<double>>& o
     //root node tree
     cwt[0][0] = in;
 
+    cout << in.size() << endl;
     for (int i = 0; i < (int)cwt.size()-1; i++){
         for (int j = 0; j < (int)cwt[i].size(); j++){
             dwt(cwt[i][j], 1, "db3", temp, flag, length);

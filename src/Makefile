@@ -1,13 +1,14 @@
 CC = g++
 
 CXXFLAGS = -c -Wall -std=c++11
+LIBS = -lboost_iostreams -lboost_system -lboost_filesystem
 OBJS = FilterGenerator.o kiss_fft.o wavelet2d.o AudioFile.o main.o
 
 filter: $(OBJS)
-	$(CC) $(OBJS) -o filter 
+	$(CC) $(OBJS) -o filter $(LIBS)
 
 FilterGenerator.o: FilterGenerator.cpp FilterGenerator.h AudioFile.h wavelet2d.h
-	$(CC) $(CXXFLAGS) FilterGenerator.cpp
+	$(CC) $(CXXFLAGS) FilterGenerator.cpp $(LIBS)
 
 kiss_fft.o: kiss_fft.c _kiss_fft_guts.h
 	$(CC) $(CXXFLAGS) kiss_fft.c

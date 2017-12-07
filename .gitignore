@@ -6,4 +6,5 @@
 /AudioFile/
 /wavelet1d/
 /fftw-3.3.7/
+/gnuplot-iostream/
 *.pdf
