@@ -7,6 +7,14 @@
 #include <string>
 #include <vector>
 
+#define W_NAME "db3"
+#define vec3d vector<vector<vector<double> > >
+#define vec2d vector<vector<double> >
+#define vec1d vector<double>
+#define vec2i vector<vector<int> >
+#define vec1i vector<int>
+
+
 using namespace std;
 
 
@@ -15,34 +23,37 @@ class FilterGenerator {
         FilterGenerator(vector<string> samples);
         bool test(string file_name);
         bool filter(string in_file, string out_file);
+        void print_stats();
     private:
-        void wpt_decompose(vector<double> in, vector<vector<double>>& out);
-        void iwpt_recompose(vector<vector<double>> in, vector<double>& out);
-        int make_p2(vector<double>& samples);
+        void wpt_decompose(vec1d in, vec2d& out);
+        void iwpt_recompose(vec2d in, vec1d& out);
+        int make_p2(vec1d& samples);
 
-        vector<vector<double>> open_samples(vector<string> file_name);
-        void init_filter(vector<vector<double>> s_list);
-        void avg_tree_list(vector<vector<vector<double>>> wpt_tree_list, vector<vector<double>>& wpt_avg_tree);
-        vector<double> extract_energy(vector<vector<double>> wpt_avg_tree);
+        vec2d open_samples(vector<string> file_name);
+        void init_filter(vec2d s_list);
+        void avg_energy(vec2d e);
+        vec1d extract_energy(vec2d wpt_tree);
 
-        void init_frames(vector<double> s, vector<vector<double>>& frame_list);
-        void update_filter(vector<double> n);
-        void apply_filter(vector<vector<double>>& frame_tree);
-        vector<double> energy_increase(vector<double> ref, vector<double> f);
-        vector<double> normalize_energy(vector<double> sig);
-        void thresshold_energy(vector<double>& e);
-        void suppress_noise(vector<double>& n, vector<double> e);
-        void plot_energy(vector<double> e);
+        void init_frames(vec1d s, vec2d& frame_list);
+        void update_filter(vec1d n);
+        void apply_filter(vec2d& frame_tree);
+        vec1d energy_increase(vec1d ref, vec1d f);
+        vec1d normalize_energy(vec1d sig);
+        void thresshold_energy(vec1d& e);
+        void suppress_noise(vec1d& n, vec1d e);
+        void plot_energy(vec1d e);
+
 
         int level;
-        vector<vector<double>> flag_stack;
-        vector<vector<int>> length_stack;
+        vec2d flag_stack;
+        vec2i length_stack;
 
-        vector<double> e_sig;
-        vector<double> e_noise;
-        vector<double> H;
+        vec1d e_sig;
+        vec1d e_noise;
+        vec1d H;
         int siglen;
         int frame_size;
+        int s_f_ratio;
         int skip;
 };
 
