@@ -8,18 +8,16 @@
 
 
 int main(){
-    std::vector<std::string> sample_name = {"../data/samples/key_sharp.wav",
-                                            "../data/samples/key1.wav",
-                                            "../data/samples/key2.wav"};
+    std::vector<std::string> sample_name = {"../data/samples/1.wav",
+                                            "../data/samples/2.wav",
+                                            "../data/samples/3.wav",
+                                            "../data/samples/4.wav",
+                                            "../data/samples/5.wav",
+                                            "../data/samples/6.wav"};
 
     FilterGenerator FG(sample_name);
-    FG.filter("../data/in/p_real.wav", "../data/out/p_real.wav");
-    //FG.filter("../data/in/positive.wav", "../data/out/positive.wav");
-    //FG.filter("../data/in/negative.wav", "../data/out/negative.wav");
-
-    
-
-
+    //FG.filter("../data/in/labeled_negative.wav", "../data/out/labeled_negative.wav");
+    FG.filter("../data/in/labeled_positive.wav", "../data/out/labeled_positive.wav");
 
     return 0;
 }

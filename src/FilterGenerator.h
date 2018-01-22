@@ -27,7 +27,9 @@ class FilterGenerator {
     private:
         void wpt_decompose(vec1d in, vec2d& out);
         void iwpt_recompose(vec2d in, vec1d& out);
-        int make_p2(vec1d& samples);
+
+        vec1i calculate_labels(AudioFile<double> af);
+        void calculate_error(vec1i l, vec1i d);
 
         vec2d open_samples(vector<string> file_name);
         void init_filter(vec2d s_list);
@@ -39,7 +41,7 @@ class FilterGenerator {
         void apply_filter(vec2d& frame_tree);
         vec1d energy_increase(vec1d ref, vec1d f);
         vec1d normalize_energy(vec1d sig);
-        void thresshold_energy(vec1d& e);
+        vec1i thresshold_energy(vec1d e, double t);
         void suppress_noise(vec1d& n, vec1d e);
         void plot_energy(vec1d e);
 
@@ -53,7 +55,6 @@ class FilterGenerator {
         vec1d H;
         int siglen;
         int frame_size;
-        int s_f_ratio;
         int skip;
 };
 

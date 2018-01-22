@@ -12,6 +12,7 @@
 #include <vector>
 #include <iostream>
 #include <cmath>
+#include <climits>
 #include <string>
 #include <utility>
 
@@ -21,7 +22,6 @@ using namespace std;
 
 FilterGenerator::FilterGenerator(vector<string> samples){
     level = 6;
-    s_f_ratio = 1.5;
     vec2d s_list;
     s_list = open_samples(samples);
     if (s_list.size() > 0){
@@ -29,6 +29,9 @@ FilterGenerator::FilterGenerator(vector<string> samples){
     }
     flag_stack.clear();
     length_stack.clear();
+    for (int i = 0; i < (int)e_sig.size(); i++){
+        cout << e_sig[i] << endl;
+    }
 }
 
 
@@ -37,15 +40,61 @@ void FilterGenerator::print_stats(){
     cout << "wavelet form: " << W_NAME << endl;
     cout << "level of decomposition: " << level -1 << endl;
     cout << "frame size: " << frame_size << endl;
-    cout << "sample length to frame length ratio: " << s_f_ratio << endl;
     cout << "--------------------" << endl;
 }
 
 
+vec1i FilterGenerator::calculate_labels(AudioFile<double> af){
+    vec1i label;
+    vec1d time = {3.059,
+                  6.080,
+                  11.292,
+                  14.054,
+                  26.489,
+                  32.666,
+                  43.156};
+    label.resize(time.size());
+    int sr = af.getSampleRate();
+    for (int i = 0; i < (int)time.size(); i++){
+        label[i] = time[i] * sr;
+    }
+    return label;
+}
+
+
+void FilterGenerator::calculate_error(vec1i l, vec1i d){
+    int dist, diff, total_error, real_error, f_pos;
+    total_error = real_error = f_pos = 0;
+    for (int i = 0; i < (int)d.size(); i++){
+        dist = INT_MAX;
+        for (int j = 0; j < (int)l.size(); j++){
+            diff = abs(d[i] - l[j]);
+            if (diff < dist)
+                dist = diff;
+        }
+        if (dist > 44100)
+            f_pos++;
+        else 
+            real_error += dist;
+        total_error += dist;
+    }
+    cout << "-------------" << endl;
+    cout << "Summary" << endl;
+    cout << "Expected: " << l.size() << endl;
+    cout << "Detected: " << d.size() << endl;
+    cout << "False positives: " << f_pos << endl;
+    cout << "True positive error: " << real_error << endl;
+    cout << "Total error: " << total_error << endl;
+    cout << "-------------" << endl;
+}
+
+
 bool FilterGenerator::filter(string in_file, string out_file){
+    vec1i label, detected;
     vec2d frame_list, frame_tree;
     vec1d ref_frame, frame, d_e_list, d_e;
     AudioFile<double> af;
+    label = calculate_labels(af);
     if (af.load(in_file))
         init_frames(af.samples[0], frame_list);
     else
@@ -55,8 +104,8 @@ bool FilterGenerator::filter(string in_file, string out_file){
         cout << (double)i / (int)frame_list.size() * 100.0 << endl;
         frame = frame_list[i];
         ref_frame = frame;
-        update_filter(frame);
-        //H = e_sig;
+        //update_filter(frame);
+        H = e_sig;
         wpt_decompose(frame, frame_tree);
         apply_filter(frame_tree);
         iwpt_recompose(frame_tree, frame);
@@ -70,7 +119,12 @@ bool FilterGenerator::filter(string in_file, string out_file){
         d_e.clear();
     }
     plot_energy(d_e_list);
-    thresshold_energy(d_e_list);
+    for (double i = 0.0; i < 0.1; i += 0.01){
+        cout << "THRESSHOLD: " << i << endl;
+        detected = thresshold_energy(d_e_list, i);
+        calculate_error(label, detected);
+        detected.clear();
+    }
     suppress_noise(af.samples[0], d_e_list);
     cin.get();
     return af.save(out_file);
@@ -110,13 +164,13 @@ void FilterGenerator::plot_energy(vec1d e){
 }
 
 
-void FilterGenerator::thresshold_energy(vec1d& e){
+vec1i FilterGenerator::thresshold_energy(vec1d e, double t){
+    vec1i detected;
     for (int i = 0; i < (int)e.size(); i++){
-        if (e[i] < 0.09)
-            e[i] = 0;
-        else
-            e[i] = 1;
+        if (e[i] > t)
+            detected.push_back(i);
     }
+    return detected;
 }
 
 
@@ -145,26 +199,21 @@ vec1d FilterGenerator::normalize_energy(vec1d sig){
 
 vec1d FilterGenerator::energy_increase(vec1d x, vec1d y){
     vec1d e_in, e_out, d_e;
-    double t;
     e_in = normalize_energy(x);
     e_out = normalize_energy(y);
     d_e.resize(frame_size);
-    for (int i = 0; i < (int)d_e.size(); i++){
-        t = 0.0;
-        for (int j = i; j < frame_size; j++){
-            t += e_out[j] - e_in[j];
-        }
-        d_e[i] = t;
+    for (int i = 0; i < (int)e_in.size(); i++){
+        d_e[i] = e_out[i] - e_in[i];
     }
     return d_e;
 }
 
 
+//total signal is too large to process at once, therefore we cut into pieces
 void FilterGenerator::init_frames(vec1d sig, vec2d& frame_list){
     vec1d frame;
     int i = 0;
     siglen = (int)sig.size();
-    skip = frame_size;
     while (i < siglen){
         if (i + frame_size < siglen){ 
             for (int j = 0; j < frame_size; j++){
@@ -173,7 +222,7 @@ void FilterGenerator::init_frames(vec1d sig, vec2d& frame_list){
             frame_list.push_back(frame);
             frame.clear();
         }
-        i += skip;
+        i += frame_size;
     }
 }
 
@@ -189,7 +238,6 @@ vec2d FilterGenerator::open_samples(vector<string> file_name){
             cout << file_name[i] << " invalid filename!" << endl;
         }
     }
-    //TODO: add padding to make all samples same size
     return s_list;
 }
 
@@ -205,9 +253,10 @@ void FilterGenerator::init_filter(vec2d s_list){
         avg_len += s_list[i].size();
         wpt_decompose(s_list[i], wpt_tree_list[i]);
         e[i] = extract_energy(wpt_tree_list[i]);
+        cout << i+1 << "/" << s_list.size() << endl;
     }
     avg_len /= s_list.size();
-    frame_size = avg_len * s_f_ratio;
+    frame_size = 500; //fairly arbitrairly chosen
     //calculate average energy
     avg_energy(e);
 }
@@ -238,17 +287,6 @@ void FilterGenerator::avg_energy(vec2d e){
         }
         e_sig[i] /= e[i].size();
     }
-}
-
-
-
-int FilterGenerator::make_p2(vec1d& samples){
-    int n = (int)samples.size();
-    while ((n & (n - 1)) != 0){
-        n++;
-    }
-    samples.resize(n, 0.0);
-    return n;
 }
 
 
