@@ -42,7 +42,7 @@ class FilterGenerator {
         vec1d energy_increase(vec1d ref, vec1d f);
         vec1d normalize_energy(vec1d sig);
         vec1i thresshold_energy(vec1d e, double t);
-        void suppress_noise(vec1d& n, vec1d e);
+        void suppress_noise(vec1d& s, vec1i d);
         void plot_energy(vec1d e);
 
 
@@ -50,6 +50,8 @@ class FilterGenerator {
         vec2d flag_stack;
         vec2i length_stack;
 
+        vector<complex<double> > np;
+        int np_len;
         vec1d e_sig;
         vec1d e_noise;
         vec1d H;

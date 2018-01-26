@@ -125,8 +125,7 @@ bool FilterGenerator::filter(string in_file, string out_file){
         calculate_error(label, detected);
         detected.clear();
     }
-    suppress_noise(af.samples[0], d_e_list);
-    cin.get();
+    suppress_noise(af.samples[0], label);
     return af.save(out_file);
 }
 
@@ -144,10 +143,23 @@ void FilterGenerator::update_filter(vec1d n){
 }
 
 
-void FilterGenerator::suppress_noise(vec1d& n, vec1d e){
-    for (int i = 0; i < (int)e.size(); i++){
-        if (e[i] == 1){
-            n[i] /= 0.5;
+void FilterGenerator::suppress_noise(vec1d& s, vec1i d){
+    vector<complex<double> > temp;
+    for (int i = 0; i < (int)d.size(); i++){
+        temp.clear();
+        //fft transform a suitable window
+        for (int j = d[i] - np_len / 2; j < d[i] + np_len / 2; j++){
+            temp.push_back((complex<double>)s[j]);
+        }
+        fft(temp, 1, np_len);
+        //subtract noise profile
+        for (int j = 0; j < (int)temp.size(); j++){
+            temp[j] -= np[j];
+        }
+        //ifft
+        fft(temp, -1, np_len);
+        for (int j = 0; j < np_len; j++){
+            s[d[i] - np_len / 2 + j] = real(temp[j]);
         }
     }
 }
@@ -259,6 +271,35 @@ void FilterGenerator::init_filter(vec2d s_list){
     frame_size = 500; //fairly arbitrairly chosen
     //calculate average energy
     avg_energy(e);
+    //caluclate FFT 
+    vector<vector<complex<double> > > temp;
+    temp.resize(s_list.size());
+    int max_size = 0;
+    for (int i = 0; i < (int)s_list.size(); i++){
+        temp[i].resize(s_list[i].size());
+        for (int j = 0; j < (int)s_list[i].size(); j++){
+            temp[i][j] = (complex<double>)s_list[i][j];
+        }
+        fft(temp[i], 1, temp[i].size());
+        max_size = max(max_size, (int)temp[i].size());
+    }
+
+    //padding is needed for whatever reason
+    for (int i = 0; (int)temp.size(); i++){
+        temp[i].resize(max_size);
+    }
+    np.resize(max_size);
+
+    //take average FFT
+    complex<double> t;
+    for (int i = 0; i < max_size; i++){
+        for (int j = 0; j < (int)temp.size(); j++){
+            t = t + temp[j][i];
+        }
+        t /= (int)temp.size();
+        np[i] = t;
+    }
+    np_len = max_size;
 }
 
 
